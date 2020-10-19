@@ -1,0 +1,126 @@
+---
+title: "Remote sensing"
+author: "Mor ndiaye"
+date: "19/10/2020"
+output: 
+  html_document:
+    theme: flatly
+    toc: TRUE
+    toc_float: TRUE
+
+---
+## Call package
+
+Importons les packages requises pour la realisations de ce travail.
+
+```{r}
+
+library(raster)
+library(sp)
+library(tidyverse)
+
+```
+
+## Rasters Data Importations
+
+Utilisons la fonction list.files pour lister l'ensemble des fichiers avec l'extension tiff
+```{r}
+
+files<-list.files(here::here("sentinnel_data_precessR/"),"\\.tif$",full.names = TRUE)
+```
+
+ Regroupons tous les raster dont on a besoin pour faciliter le travail ulterieur.
+ les rasters consernent la bande 2,3 ,4 et 8 les images utilisés sont de types sentinel 2
+```{r}
+r1 <- raster::raster(files[1])
+
+for (i in 2:length(files)) {
+  r1 <- stack(r1, files[i])
+}
+```
+ 
+Jetons un petit coup d'oeil sur le nouveau raster constitué de plusieurs rasters
+
+Nombre de couche 
+```{r}
+## Nombre de couche
+nlayers(r1)
+## resolution
+res(r1)
+## nombre de pixel
+ncell(r1)
+
+```
+
+## Image Composite
+Creons le True color composite avec les bande 4,3,2
+
+```{r}
+par(col.axis="white",col.lab="white",tck=0)
+plotRGB(r1, r = 3, g = 2, b = 1, axes = TRUE, 
+        stretch = "lin", main = "True Color Composite")
+box(col="white")
+
+```
+
+Creation du False color composite avec les bande 8,4,3
+```{r}
+par(col.axis="white",col.lab="white",tck=0)
+plotRGB(r1, r = 4, g = 3, b = 2, axes = TRUE, 
+        stretch = "lin", main = "False Color Composite")
+box(col="white")
+```
+
+
+## Determination des indices NDVI et NDWI
+Determination de l'indice NDVI
+ A partir des bandes NIR et Red generons l'indice de vegetation NDVI pour avoir un petit apercu sur l'etat de la vegetation sur la zone d'etude en question
+Ainsi pour cela nous creons un fonction pour facilité le calcule
+
+```{r}
+NDVIfun <- function(NIR, Red) {
+  NDVI <- (NIR - Red) / (NIR + Red)
+  return(NDVI)
+}
+```
+
+
+
+Appliquons la fonction sur les donnees rasters en notre possession
+```{r}
+ndvi<-NDVIfun(r1$clip_RT_T28PDA_20180927T112111_B08,r1$clip_RT_T28PDA_20180927T112111_B04)
+
+```
+
+ representation grapique
+```{r}
+ndvi %>%
+  plot(.,col = rev(terrain.colors(10)), main = "Sentinel2-NDVI")
+
+```
+ 
+ Pour verifier l'humidité du sol l'indice NDWI constitue un element non negligeable .Ainsi nous avons mise en place une fonction pour calculer l'eau disponible.
+ 
+```{r}
+NDWIfun <- function(Green, NIR) {
+  NDVI <- (Green - NIR) / (Green + NIR)
+  return(NDVI)
+}
+```
+ 
+ Appliquons la fonction sur les donnees rasters en notre possession
+ representation grapique
+```{r}
+
+ndwi<-NDWIfun(r1$clip_RT_T28PDA_20180927T112111_B03,r1$clip_RT_T28PDA_20180927T112111_B08)
+```
+ 
+ representation grapique
+```{r}
+ndwi %>%
+  plot(.,col = blues9, main = "Sentinel2-NDWI")
+
+```
+ 
+
+
